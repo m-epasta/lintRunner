@@ -13,7 +13,7 @@ pub struct FileMetadata {
 
 // if a path is provided, use it to detect what types of config file is provided
 // for now: get the extension of the given path
-fn get_config_file_typ(filePath string) !string {
+pub fn get_config_file_typ(filePath string) !string {
 	// clean the file path to have something like:
 	// ORIGINAL: /home/m-epasta/vlang_devTools/lintRunner/config_analyzer/v.mod
 	// PROCESSED: v.mod
