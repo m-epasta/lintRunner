@@ -3,7 +3,7 @@ module config_analyzer
 import os
 
 // const for supported extensions — goal is to avoid repetition of this helper variable
-const supported_extensions = ['.json', '.yaml', '.yml', '.toml', '.mod']
+pub const supported_extensions = ['.json', '.yaml', '.yml', '.toml', '.mod']
 
 pub struct FileMetadata {
 	file_name string
