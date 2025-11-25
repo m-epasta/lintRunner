@@ -1,6 +1,7 @@
 module main
 
 import os
+import config_analyzer
 
 fn main() {
 	// Entry point
@@ -9,7 +10,7 @@ fn main() {
 	// Ask for the mode of configs
 	ask_for_mode()
 
-	
+
 }
 
 fn ask_for_mode() {
