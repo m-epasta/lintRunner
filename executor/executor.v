@@ -3,14 +3,16 @@ module executor
 import os
 import config_analyzer
 
+// set an enum to save what mode has actually been choose
 pub enum Mode {
 	auto
 	semi_auto
 }
 
+// struct of the 2 configs
 pub struct Options {
 	mode        Mode
-	config_path string
+	config_path ?string
 }
 
 @[noreturn]
@@ -26,7 +28,7 @@ pub fn parse_and_validate_options(mode_str string, config_path string) !Options 
 		else { return error('Invalid mode "${mode_str}". Use "auto" or "semi-auto".') }
 	}
 
-	target_path := if config_path != '' {
+	final_config_path := if config_path != '' {
 		if !os.exists(config_path) {
 			return error('Specified config file "${config_path}" does not exist.')
 		}
@@ -41,12 +43,16 @@ pub fn parse_and_validate_options(mode_str string, config_path string) !Options 
 	} else {
 		path := detect_config_file()
 		if path == '' {
-			return error('No supported config file found in current directory.')
+			''
+		} else {
+			path
 		}
-		path
 	}
 
-	return Options{ mode, target_path }
+	return Options{
+		mode: mode,
+		config_path: if final_config_path != '' { final_config_path } else { none }
+	}
 }
 
 fn detect_config_file() string {
@@ -61,20 +67,25 @@ fn detect_config_file() string {
 }
 
 pub fn execute_linting(opts Options) ! {
-	config_type := config_analyzer.get_config_file_typ(opts.config_path)!
+	if config_path := opts.config_path {
+		config_type := config_analyzer.get_config_file_typ(config_path)!
 
-	println('Using config file: ${opts.config_path}')
-	println('Detected config type: ${config_type}')
+		println('Using config file: ${config_path}')
+		println('Detected config type: ${config_type}')
 
-	match opts.mode {
-		.auto {
-			println('Running in AUTO MODE')
-			run_auto_lint(config_type)
+		match opts.mode {
+			.auto {
+				println('Running in AUTO MODE')
+				run_auto_lint(config_type)
+			}
+			.semi_auto {
+				println('Running in SEMI AUTO MODE')
+				run_semi_auto_lint(config_type)
+			}
 		}
-		.semi_auto {
-			println('Running in SEMI AUTO MODE')
-			run_semi_auto_lint(config_type)
-		}
+	} else {
+		println('No config file found. Linting cannot proceed.')
+		return
 	}
 }
 
