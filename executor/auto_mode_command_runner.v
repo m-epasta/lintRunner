@@ -54,6 +54,9 @@ fn choose_cmd_by_typ(typ string, fileName string) string {
         'json' {
             'echo "JSON linting: no standard command available - consider installing prettier"'
         }
+        'toml' {
+            'cargo check'
+        }
         else {
             'echo "Unknown type ${typ}: no linting command available"'
         }
