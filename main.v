@@ -15,10 +15,13 @@ fn main() {
 	mut mode_str := fp.string('mode', `m`, 'auto', 'Specify the execution mode: auto or semi-auto')
 	mut config_path := fp.string('config', `c`, '', 'Path to the config file. If empty, will auto-detect from current directory')
 
-	opts := executor.parse_and_validate_options(mode_str, config_path) or { executor.exit_error(err.msg()) }
+	opts := executor.parse_and_validate_options(mode_str, config_path) or { executor.exit_error(err.msg(), err.code()) }
 
 	println('=== LINTRUNNER executed ===')
 
 	// switch from entry point to executor logic
-	executor.execute_linting(opts) or { executor.exit_error('Linting failed: ${err.msg()}') }
+	executor.execute_linting(opts) or { executor.exit_error('Linting failed: ${err.msg()}', err.code()) }
+
+
+
 }
