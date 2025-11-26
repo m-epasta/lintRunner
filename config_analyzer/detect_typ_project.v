@@ -7,9 +7,8 @@ pub const supported_extensions = ['.json', '.yaml', '.yml', '.toml', '.mod']
 
 pub struct FileMetadata {
 	file_name string
-	file_ext string
+	file_ext  string
 }
-
 
 // if a path is provided, use it to detect what types of config file is provided
 // for now: get the extension of the given path
@@ -30,7 +29,7 @@ fn process_file_path_as_str(filePath string) !FileMetadata {
 	file_name := os.base(filePath)
 	file_ext := os.file_ext(filePath)
 
-	return FileMetadata{ file_name, file_ext }
+	return FileMetadata{file_name, file_ext}
 }
 
 // input = filePath

@@ -17,7 +17,6 @@ pub struct Options {
 	config_path ?string
 }
 
-
 pub fn parse_and_validate_options(mode_str string, config_path string) !Options {
 	mode := match mode_str {
 		'auto' { Mode.auto }
@@ -47,7 +46,7 @@ pub fn parse_and_validate_options(mode_str string, config_path string) !Options 
 	}
 
 	return Options{
-		mode: mode,
+		mode:        mode
 		config_path: if final_config_path != '' { final_config_path } else { none }
 	}
 }
@@ -91,10 +90,18 @@ pub fn execute_linting(opts Options) ! {
 
 fn map_config_to_typ(config_type string) string {
 	match config_type {
-		'v_language_module' { return 'v' }
-		'package_config' { return 'js' }
-		'app_config' { return 'json' }
-		'generic_json' { return 'json' }
+		'v_language_module' {
+			return 'v'
+		}
+		'package_config' {
+			return 'js'
+		}
+		'app_config' {
+			return 'json'
+		}
+		'generic_json' {
+			return 'json'
+		}
 		else {
 			if config_type.starts_with('unknown_') {
 				ext := config_type['unknown_'.len..]
@@ -107,14 +114,16 @@ fn map_config_to_typ(config_type string) string {
 
 fn run_auto_lint(dirPath string, typ string) ! {
 	println('Running lint automatically in directory: ${dirPath} for type: ${typ}')
-	run_auto_mode(dirPath, '', typ)!  // Cd to the project's directory and run auto lint for the specified typ (language/format)
+	run_auto_mode(dirPath, '', typ)! // Cd to the project's directory and run auto lint for the specified typ (language/format)
 }
 
 fn run_semi_auto_lint(config_type string) {
 	mut confirm := ''
 	for {
 		confirm = os.input('Proceed with linting? (y/n): ').to_lower()
-		if confirm in ['y', 'n'] { break }
+		if confirm in ['y', 'n'] {
+			break
+		}
 		println('Please enter "y" or "n".')
 	}
 	if confirm == 'n' {
@@ -124,4 +133,3 @@ fn run_semi_auto_lint(config_type string) {
 	println('Running lint in semi-auto mode...')
 	// TODO: implement actual linting logic based on config_type
 }
-
