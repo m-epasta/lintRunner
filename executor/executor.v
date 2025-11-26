@@ -3,6 +3,8 @@ module executor
 import os
 import config_analyzer
 
+const supported_extensions_instance = config_analyzer.supported_extensions
+
 // set an enum to save what mode has actually been choose
 pub enum Mode {
 	auto
@@ -31,8 +33,8 @@ pub fn parse_and_validate_options(mode_str string, config_path string) !Options 
 			return error('Specified config path "${config_path}" is not a file.')
 		}
 		ext := os.file_ext(config_path)
-		if ext !in config_analyzer.supported_extensions {
-			return error('Unsupported config file extension "${ext}". Supported: ${config_analyzer.supported_extensions}')
+		if ext !in supported_extensions_instance {
+			return error('Unsupported config file extension "${ext}". Supported: ${supported_extensions_instance}')
 		}
 		config_path
 	} else {
@@ -54,7 +56,7 @@ fn detect_config_file() string {
 	files := os.ls('.') or { return '' }
 	for file in files {
 		ext := os.file_ext(file)
-		if ext in config_analyzer.supported_extensions {
+		if ext in supported_extensions_instance {
 			return file
 		}
 	}
@@ -68,10 +70,13 @@ pub fn execute_linting(opts Options) ! {
 		println('Using config file: ${config_path}')
 		println('Detected config type: ${config_type}')
 
+		dir_path := os.dir(config_path)
+		typ := map_config_to_typ(config_type)
+
 		match opts.mode {
 			.auto {
 				println('Running in AUTO MODE')
-				run_auto_lint(config_type)
+				run_auto_lint(dir_path, typ)!
 			}
 			.semi_auto {
 				println('Running in SEMI AUTO MODE')
@@ -84,9 +89,25 @@ pub fn execute_linting(opts Options) ! {
 	}
 }
 
-fn run_auto_lint(config_type string) {
-	println('Running lint automatically...')
-	// TODO: implement actual linting logic based on config_type
+fn map_config_to_typ(config_type string) string {
+	match config_type {
+		'v_language_module' { return 'v' }
+		'package_config' { return 'js' }
+		'app_config' { return 'json' }
+		'generic_json' { return 'json' }
+		else {
+			if config_type.starts_with('unknown_') {
+				ext := config_type['unknown_'.len..]
+				return ext.trim_left('.')
+			}
+			return 'unknown'
+		}
+	}
+}
+
+fn run_auto_lint(dirPath string, typ string) ! {
+	println('Running lint automatically in directory: ${dirPath} for type: ${typ}')
+	run_auto_mode(dirPath, '', typ)!  // Cd to the project's directory and run auto lint for the specified typ (language/format)
 }
 
 fn run_semi_auto_lint(config_type string) {
@@ -103,3 +124,4 @@ fn run_semi_auto_lint(config_type string) {
 	println('Running lint in semi-auto mode...')
 	// TODO: implement actual linting logic based on config_type
 }
+
