@@ -15,12 +15,6 @@ pub struct Options {
 	config_path ?string
 }
 
-// no return fn util that print an error and exit 
-@[noreturn]
-pub fn exit_error(msg string, code int) {
-	eprintln('Error: ${msg}')
-	exit(i8(code)) // i8 to make sure i dont use stupid exit code
-}
 
 pub fn parse_and_validate_options(mode_str string, config_path string) !Options {
 	mode := match mode_str {
