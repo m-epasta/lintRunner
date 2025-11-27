@@ -8,10 +8,14 @@ lintRunner is a V language tool that automatically detects your project type and
 
 ## Features
 
-- 🔍 **Auto-detection**: Automatically detects project type from config files
-- 🎯 **Multi-language support**: V, JavaScript/TypeScript, JSON, TOML
+- 🎨 **Colored terminal output**: Beautiful, readable output with color-coded messages
+- 🔍 **Auto-detection**: Automatically detects project type from config files or file extensions
+- 🎯 **Multi-language support**: V, JavaScript/TypeScript, Python, Go, Rust, JSON, YAML, TOML
 - ⚙️ **Two execution modes**: Auto and Semi-auto
-- 📝 **Flexible configuration**: Use auto-detection or specify config file manually
+- 🔧 **Lint & Format**: Support for both linting and formatting operations
+- 📝 **Flexible configuration**: Use auto-detection, specify config file, or target specific files
+- ⚡ **Auto-format flag**: Skip confirmation prompts for CI/CD pipelines
+- 📄 **File-specific operations**: Target individual files with simple syntax
 
 ## Installation
 
@@ -35,7 +39,22 @@ sudo mv lintRunner /usr/local/bin/
 
 ## Usage
 
-### Basic Usage
+### Simplest Usage - Target a Specific File
+
+The easiest way to use lintRunner is to pass a filename directly:
+
+```bash
+lintRunner main.v
+lintRunner src/utils.js
+lintRunner config.py
+```
+
+This automatically:
+- Detects file type from extension
+- Runs appropriate linting command
+- Shows colored, easy-to-read output
+
+### Basic Project-Wide Usage
 
 Run lintRunner in your project directory:
 
@@ -47,24 +66,76 @@ This will:
 1. Auto-detect the config file in the current directory
 2. Determine the project type
 3. Run the appropriate linting command
+4. Display results with colored output
 
 ### Command Line Options
 
 ```bash
-lintRunner [options]
+lintRunner [filename] [options]
 ```
+
+**Positional Arguments:**
+- `filename` - Optional. Specific file to lint/format (e.g., `main.v`, `src/app.js`)
 
 **Options:**
 - `-m, --mode <string>` - Execution mode: `auto` or `semi-auto` (default: `auto`)
 - `-c, --config <string>` - Path to config file (auto-detects if not specified)
+- `-o, --operation <string>` - Operation: `lint` or `format` (default: `lint`)
+- `-f, --auto-format` - Automatically format without prompting (for format operation)
 - `-h, --help` - Display help information
 - `--version` - Show version information
 
 ### Examples
 
-#### Auto Mode (Default)
+#### Lint a Specific File
 
-Automatically detect and lint:
+```bash
+lintRunner main.v
+lintRunner executor/color_utils.v
+```
+
+Output:
+```
+═══ LINTRUNNER ═══
+ℹ Target file: main.v
+ℹ Detected file type: v
+Running in AUTO MODE
+ℹ Running linting automatically on file: main.v for type: v
+✓ Changed directory to: /home/user/project
+$ v fmt -l main.v
+✓ linting passed for type v
+```
+
+#### Format a Specific File
+
+```bash
+lintRunner main.v -o format
+```
+
+When files need formatting, you'll see:
+```
+────────────────────────────────────────────────────────────
+⚠ The following files need formatting:
+  main.v
+  
+ℹ Found 1 file(s) with formatting issues.
+────────────────────────────────────────────────────────────
+❯ Would you like to auto-format these files? (y/n):
+```
+
+#### Auto-Format Without Prompts
+
+Perfect for CI/CD pipelines:
+
+```bash
+lintRunner main.v -o format --auto-format
+# or short form
+lintRunner main.v -o format -f
+```
+
+#### Project-Wide Linting
+
+Auto mode (default):
 ```bash
 lintRunner
 ```
@@ -76,14 +147,21 @@ lintRunner --config path/to/package.json
 
 #### Semi-Auto Mode
 
-Prompts for confirmation before running:
+Shows preview and prompts for confirmation:
 ```bash
 lintRunner --mode semi-auto
+# or with a file
+lintRunner main.v -m semi-auto
 ```
 
-Or using short form:
-```bash
-lintRunner -m semi-auto
+Output:
+```
+────────────────────────────────────────────────────────────
+ℹ Operation: linting
+ℹ Target: main.v
+ℹ Type: v
+────────────────────────────────────────────────────────────
+❯ Proceed with linting? (y/n):
 ```
 
 ## Supported Project Types
@@ -92,23 +170,49 @@ lintRunner automatically detects and handles the following project types:
 
 ### V Language Projects
 - **Config file**: `v.mod`
-- **Lint command**: `v fmt --check .`
+- **File extension**: `.v`
+- **Lint command**: `v fmt -l .` or `v fmt -l <file>`
+- **Format command**: `v fmt -w .` or `v fmt -w <file>`
 
 ### JavaScript/Node.js Projects
 - **Config file**: `package.json`
+- **File extensions**: `.js`, `.jsx`
 - **Lint command**: `npm run lint`
+- **Format command**: `prettier --write .` or `prettier --write <file>`
 
 ### TypeScript Projects
 - **Config file**: Any TypeScript config
+- **File extensions**: `.ts`, `.tsx`
 - **Lint command**: `tsc --noEmit`
+- **Format command**: `prettier --write .` or `prettier --write <file>`
 
-### JSON Projects
-- **Config file**: `*.json`
-- **Lint command**: Suggests using Prettier
+### Python Projects
+- **File extension**: `.py`
+- **Format command**: `black .` or `black <file>`
+
+### Go Projects
+- **File extension**: `.go`
+- **Format command**: `gofmt -w .` or `gofmt -w <file>`
 
 ### Rust Projects
 - **Config file**: `Cargo.toml`
+- **File extension**: `.rs`
 - **Lint command**: `cargo check`
+- **Format command**: `cargo fmt`
+
+### JSON Projects
+- **Config file**: `*.json`
+- **File extension**: `.json`
+- **Format command**: `prettier --write .` or `prettier --write <file>`
+
+### YAML Projects
+- **File extensions**: `.yaml`, `.yml`
+- **Format command**: `prettier --write .` or `prettier --write <file>`
+
+### TOML Projects
+- **File extension**: `.toml`
+- **Lint command**: `cargo check`
+- **Format command**: `cargo fmt`
 
 ## Supported Config File Extensions
 
@@ -119,21 +223,39 @@ lintRunner recognizes the following config file extensions:
 - `.toml`
 - `.mod`
 
+## Color Scheme
+
+lintRunner uses colored output for better readability:
+
+| Message Type | Color | Symbol |
+|--------------|-------|--------|
+| Success | Green | ✓ |
+| Error | Red | ✗ |
+| Warning | Yellow | ⚠ |
+| Info | Cyan | ℹ |
+| Prompt | Bright Blue | ❯ |
+| Header | Bold Bright Blue | - |
+| File Paths | Bright White | - |
+| Commands | Bright Magenta | $ |
+| Separators | Gray | ─ |
+
 ## Execution Modes
 
 ### Auto Mode
 
 In auto mode, lintRunner:
-1. Detects the config file
-2. Determines the project type
-3. Immediately runs the appropriate linting command
+1. Detects the config file or file type
+2. Determines the project/file type
+3. Immediately runs the appropriate lint/format command
+4. For formatting: shows preview and prompts for confirmation (unless `--auto-format` is used)
 
 ### Semi-Auto Mode
 
 In semi-auto mode, lintRunner:
-1. Detects the config file
-2. Prompts for confirmation: `Proceed with linting? (y/n):`
-3. Runs linting only if confirmed
+1. Detects the config file or file type
+2. Shows a formatted preview with operation details
+3. Prompts for confirmation: `Proceed with <operation>? (y/n):`
+4. Runs lint/format only if confirmed
 
 ## How It Works
 
