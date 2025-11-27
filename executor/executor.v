@@ -18,13 +18,15 @@ pub enum Operation {
 
 // struct of the configs
 pub struct Options {
-	mode        Mode
+	mode Mode
 pub:
 	operation   Operation
 	config_path ?string
+	auto_format bool
+	file_name   string
 }
 
-pub fn parse_and_validate_options(mode_str string, config_path string, operation_str string) !Options {
+pub fn parse_and_validate_options(mode_str string, config_path string, operation_str string, auto_format bool, file_name string) !Options {
 	mode := match mode_str {
 		'auto' { Mode.auto }
 		'semi-auto' { Mode.semi_auto }
@@ -62,6 +64,8 @@ pub fn parse_and_validate_options(mode_str string, config_path string, operation
 		mode:        mode
 		operation:   operation
 		config_path: if final_config_path != '' { final_config_path } else { none }
+		auto_format: auto_format
+		file_name:   file_name
 	}
 }
 
@@ -77,27 +81,82 @@ fn detect_config_file() string {
 }
 
 pub fn execute_operation(opts Options) ! {
+	// If filename is provided, use it to determine config and directory
+	if opts.file_name != '' {
+		// Validate file exists
+		if !os.exists(opts.file_name) {
+			print_error('File "${opts.file_name}" does not exist.')
+			return error('File not found')
+		}
+
+		// Get directory and file info
+		file_dir := if opts.file_name.contains('/') {
+			os.dir(opts.file_name)
+		} else {
+			'.'
+		}
+		file_base := os.base(opts.file_name)
+		file_ext := os.file_ext(opts.file_name)
+
+		// Determine type from file extension
+		typ := match file_ext {
+			'.v' { 'v' }
+			'.js', '.jsx' { 'js' }
+			'.ts', '.tsx' { 'ts' }
+			'.json' { 'json' }
+			'.py' { 'python' }
+			'.go' { 'go' }
+			'.rs' { 'rust' }
+			'.toml' { 'toml' }
+			'.yaml', '.yml' { 'yaml' }
+			else { 'unknown' }
+		}
+
+		if typ == 'unknown' {
+			print_warning('Unknown file type for "${opts.file_name}"')
+			return error('Unsupported file type')
+		}
+
+		print_info('Target file: ${format_path(opts.file_name)}')
+		print_info('Detected file type: ${typ}')
+
+		match opts.mode {
+			.auto {
+				print_header('Running in AUTO MODE')
+				run_auto_operation(file_dir, typ, opts.operation, opts.auto_format, file_base)!
+			}
+			.semi_auto {
+				print_header('Running in SEMI AUTO MODE')
+				run_semi_auto_operation(file_dir, typ, opts.operation, opts.auto_format,
+					file_base)!
+			}
+		}
+		return
+	}
+
+	// Original logic for config-based detection
 	if config_path := opts.config_path {
 		config_type := config_analyzer.get_config_file_typ(config_path)!
 
-		println('Using config file: ${config_path}')
-		println('Detected config type: ${config_type}')
+		print_info('Using config file: ${format_path(config_path)}')
+		print_info('Detected config type: ${config_type}')
 
 		dir_path := os.dir(config_path)
 		typ := map_config_to_typ(config_type)
 
 		match opts.mode {
 			.auto {
-				println('Running in AUTO MODE')
-				run_auto_operation(dir_path, typ, opts.operation)!
+				print_header('Running in AUTO MODE')
+				run_auto_operation(dir_path, typ, opts.operation, opts.auto_format, '')!
 			}
 			.semi_auto {
-				println('Running in SEMI AUTO MODE')
-				run_semi_auto_operation(config_type, opts.operation)
+				print_header('Running in SEMI AUTO MODE')
+				run_semi_auto_operation(dir_path, typ, opts.operation, opts.auto_format,
+					'')!
 			}
 		}
 	} else {
-		println('No config file found. Cannot proceed.')
+		print_warning('No config file found. Cannot proceed.')
 		return
 	}
 }
@@ -134,26 +193,38 @@ fn map_config_to_typ(config_type string) string {
 	}
 }
 
-fn run_auto_operation(dirPath string, typ string, op Operation) ! {
+fn run_auto_operation(dirPath string, typ string, op Operation, auto_format bool, file_name string) ! {
 	operation_str := if op == .lint { 'linting' } else { 'formatting' }
-	println('Running ${operation_str} automatically in directory: ${dirPath} for type: ${typ}')
-	run_auto_mode(dirPath, '', typ, op)! // Cd to the project's directory and run auto lint/format for the specified typ (language/format)
+	target_desc := if file_name != '' {
+		'file: ${format_path(file_name)}'
+	} else {
+		'directory: ${format_path(dirPath)}'
+	}
+	print_info('Running ${operation_str} automatically on ${target_desc} for type: ${typ}')
+	run_auto_mode(dirPath, file_name, typ, op, auto_format)!
 }
 
-fn run_semi_auto_operation(config_type string, op Operation) {
+fn run_semi_auto_operation(dirPath string, typ string, op Operation, auto_format bool, file_name string) ! {
 	operation_str := if op == .lint { 'linting' } else { 'formatting' }
+	target_desc := if file_name != '' { file_name } else { dirPath }
+	print_separator()
+	print_info('Operation: ${operation_str}')
+	print_info('Target: ${format_path(target_desc)}')
+	print_info('Type: ${typ}')
+	print_separator()
+
 	mut confirm := ''
 	for {
-		confirm = os.input('Proceed with ${operation_str}? (y/n): ').to_lower()
+		print_prompt('Proceed with ${operation_str}? (y/n): ')
+		confirm = os.input('').to_lower()
 		if confirm in ['y', 'n'] {
 			break
 		}
-		println('Please enter "y" or "n".')
+		print_warning('Please enter "y" or "n".')
 	}
 	if confirm == 'n' {
-		println('${operation_str} cancelled.')
+		print_info('${operation_str} cancelled.')
 		return
 	}
-	println('Running in semi-auto mode...')
-	// TODO: implement actual linting/formatting logic based on config_type
+	run_auto_mode(dirPath, file_name, typ, op, auto_format)!
 }
