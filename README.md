@@ -2,6 +2,10 @@
 
 A CLI tool that automates the execution of linting scripts for various project types.
 
+## IMPORTANT
+
+I DO NOT RECOMMEND USING THIS TOOL IN PRODUCTION YET. IT IS STILL IN DEVELOPMENT AND MAY NOT WORK AS EXPECTED. USE AT YOUR OWN RISK. IT IS ACTUALLY WORKING WELL ONLY WITH FORMATTING V FILES.
+
 ## Overview
 
 lintRunner is a V language tool that automatically detects your project type and runs the appropriate linting commands. It supports multiple languages and configuration formats, making it easy to maintain code quality across different projects.
