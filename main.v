@@ -10,7 +10,7 @@ fn main() {
 	mut fp := flag.new_flag_parser(os.args)
 	fp.application('lintRunner')
 	fp.description('a CLI tool that automate the execution of linting and formatting scripts')
-	fp.version('0.0.0')
+	fp.version('0.0.2')
 
 	// init the actual configs
 	mut mode_str := fp.string('mode', `m`, 'auto', 'Specify the execution mode: auto or semi-auto')
