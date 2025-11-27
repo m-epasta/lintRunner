@@ -11,17 +11,30 @@ pub enum Mode {
 	semi_auto
 }
 
-// struct of the 2 configs
+pub enum Operation {
+	lint
+	format
+}
+
+// struct of the configs
 pub struct Options {
 	mode        Mode
+pub:
+	operation   Operation
 	config_path ?string
 }
 
-pub fn parse_and_validate_options(mode_str string, config_path string) !Options {
+pub fn parse_and_validate_options(mode_str string, config_path string, operation_str string) !Options {
 	mode := match mode_str {
 		'auto' { Mode.auto }
 		'semi-auto' { Mode.semi_auto }
 		else { return error('Invalid mode "${mode_str}". Use "auto" or "semi-auto".') }
+	}
+
+	operation := match operation_str {
+		'lint' { Operation.lint }
+		'format' { Operation.format }
+		else { return error('Invalid operation "${operation_str}". Use "lint" or "format".') }
 	}
 
 	final_config_path := if config_path != '' {
@@ -47,6 +60,7 @@ pub fn parse_and_validate_options(mode_str string, config_path string) !Options 
 
 	return Options{
 		mode:        mode
+		operation:   operation
 		config_path: if final_config_path != '' { final_config_path } else { none }
 	}
 }
@@ -62,7 +76,7 @@ fn detect_config_file() string {
 	return ''
 }
 
-pub fn execute_linting(opts Options) ! {
+pub fn execute_operation(opts Options) ! {
 	if config_path := opts.config_path {
 		config_type := config_analyzer.get_config_file_typ(config_path)!
 
@@ -75,15 +89,15 @@ pub fn execute_linting(opts Options) ! {
 		match opts.mode {
 			.auto {
 				println('Running in AUTO MODE')
-				run_auto_lint(dir_path, typ)!
+				run_auto_operation(dir_path, typ, opts.operation)!
 			}
 			.semi_auto {
 				println('Running in SEMI AUTO MODE')
-				run_semi_auto_lint(config_type)
+				run_semi_auto_operation(config_type, opts.operation)
 			}
 		}
 	} else {
-		println('No config file found. Linting cannot proceed.')
+		println('No config file found. Cannot proceed.')
 		return
 	}
 }
@@ -105,31 +119,41 @@ fn map_config_to_typ(config_type string) string {
 		else {
 			if config_type.starts_with('unknown_') {
 				ext := config_type['unknown_'.len..]
-				return ext.trim_left('.')
+				lang := ext.trim_left('.')
+				return match lang {
+					'py' { 'python' }
+					'go' { 'go' }
+					'rs' { 'rust' }
+					'toml' { 'toml' }
+					'yaml', 'yml' { 'yaml' }
+					else { lang }
+				}
 			}
 			return 'unknown'
 		}
 	}
 }
 
-fn run_auto_lint(dirPath string, typ string) ! {
-	println('Running lint automatically in directory: ${dirPath} for type: ${typ}')
-	run_auto_mode(dirPath, '', typ)! // Cd to the project's directory and run auto lint for the specified typ (language/format)
+fn run_auto_operation(dirPath string, typ string, op Operation) ! {
+	operation_str := if op == .lint { 'linting' } else { 'formatting' }
+	println('Running ${operation_str} automatically in directory: ${dirPath} for type: ${typ}')
+	run_auto_mode(dirPath, '', typ, op)! // Cd to the project's directory and run auto lint/format for the specified typ (language/format)
 }
 
-fn run_semi_auto_lint(config_type string) {
+fn run_semi_auto_operation(config_type string, op Operation) {
+	operation_str := if op == .lint { 'linting' } else { 'formatting' }
 	mut confirm := ''
 	for {
-		confirm = os.input('Proceed with linting? (y/n): ').to_lower()
+		confirm = os.input('Proceed with ${operation_str}? (y/n): ').to_lower()
 		if confirm in ['y', 'n'] {
 			break
 		}
 		println('Please enter "y" or "n".')
 	}
 	if confirm == 'n' {
-		println('Linting cancelled.')
+		println('${operation_str} cancelled.')
 		return
 	}
-	println('Running lint in semi-auto mode...')
-	// TODO: implement actual linting logic based on config_type
+	println('Running in semi-auto mode...')
+	// TODO: implement actual linting/formatting logic based on config_type
 }

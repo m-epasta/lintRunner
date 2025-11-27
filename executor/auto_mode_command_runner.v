@@ -4,31 +4,36 @@ import os
 
 // entry point for auto_mode
 // takes the file_path as argument and the type of the file given with the param filePath
-fn run_auto_mode(dirPath string, fileName string, typ string) ! {
+fn run_auto_mode(dirPath string, fileName string, typ string, op Operation) ! {
 	// cd in the dir
 	go_to_path(dirPath)
 
+	operation_str := if op == .lint { 'linting' } else { 'formatting' }
+
 	// process type to know what data should be executed
-	processed_cmd := choose_cmd_by_typ(typ, fileName)
+	processed_cmd := choose_cmd_by_op_and_typ(op, typ, fileName)
 
 	println('Executing: ${processed_cmd}')
 
-	// execute the lint command
+	// execute the lint/format command
 	cmd_result := os.execute(processed_cmd)
 
 	// Special handling for V formatting
-	if typ == 'v' {
+	if typ == 'v' && op == .format {
 		handle_v_formatting(cmd_result, fileName)!
+	} else if op == .format {
+		// For other types, check if formatting is needed and prompt
+		handle_generic_formatting(cmd_result, typ, fileName)!
 	} else {
-		// For other types, use standard error handling
+		// For linting other types, use standard error handling
 		if cmd_result.exit_code != 0 {
 			if cmd_result.output.len > 0 {
-				eprintln('\nLinting errors found:')
+				eprintln('\n${operation_str} errors found:')
 				eprintln(cmd_result.output)
 			}
 			verify_cmd(cmd_result, processed_cmd)
 		} else {
-			println('✓ Linting passed for type ${typ}')
+			println('✓ ${operation_str} passed for type ${typ}')
 		}
 	}
 }
@@ -96,31 +101,159 @@ fn go_to_path(dirPath string) {
 }
 
 // SECOND STEP
-fn choose_cmd_by_typ(typ string, fileName string) string {
-	return match typ {
-		'v' {
-			if fileName != '' {
-				'v fmt -l ${fileName}'
-			} else {
-				'v fmt -l .'
+fn choose_cmd_by_op_and_typ(op Operation, typ string, fileName string) string {
+	return match op {
+		.lint {
+			match typ {
+				'v' {
+					if fileName != '' {
+						'v fmt -l ${fileName}'
+					} else {
+						'v fmt -l .'
+					}
+				}
+				'js' {
+					'npm run lint'
+				}
+				'ts' {
+					'tsc --noEmit'
+				}
+				'json' {
+					'echo "JSON linting: no standard command available - consider installing prettier"'
+				}
+				'toml' {
+					'cargo check'
+				}
+				else {
+					'echo "Unknown type ${typ}: no linting command available"'
+				}
 			}
 		}
-		'js' {
-			'npm run lint'
-		}
-		'ts' {
-			'tsc --noEmit'
-		}
-		'json' {
-			'echo "JSON linting: no standard command available - consider installing prettier"'
-		}
-		'toml' {
-			'cargo check'
-		}
-		else {
-			'echo "Unknown type ${typ}: no linting command available"'
+		.format {
+			match typ {
+				'v' {
+					if fileName != '' {
+						'v fmt -l ${fileName}'
+					} else {
+						'v fmt -l .'
+					}
+				}
+				'js', 'ts', 'json' {
+					// Use Prettier for formatting JS/TS/JSON
+					if fileName != '' {
+						'prettier --check ${fileName}'
+					} else {
+						'prettier --check .'
+					}
+				}
+				'yaml' {
+					if fileName != '' {
+						'prettier --check ${fileName}'
+					} else {
+						'prettier --check .'
+					}
+				}
+				'toml' {
+					// Rust/Cargo projects - check formatting
+					'cargo fmt -- --check'
+				}
+				'python' {
+					// Python - check with black
+					if fileName != '' {
+						'black --check --diff ${fileName}'
+					} else {
+						'black --check --diff .'
+					}
+				}
+				'go' {
+					// Go - check formatting
+					'gofmt -d .'
+				}
+				else {
+					'echo "Unknown type ${typ}: no formatting command available"'
+				}
+			}
 		}
 	}
+}
+
+// Handle generic formatting for other languages
+fn handle_generic_formatting(cmd_result os.Result, typ string, fileName string) ! {
+	if cmd_result.exit_code == 0 {
+		println('✓ All ${typ} files are properly formatted')
+		return
+	}
+
+	// For most formatters, non-zero exit means formatting needed
+	needs_formatting := cmd_result.exit_code != 0
+
+	if !needs_formatting {
+		println('✓ All ${typ} files are properly formatted')
+		return
+	}
+
+	// Show what would be changed (if available)
+	if cmd_result.output.len > 0 {
+		println('\n⚠ Formatting differences found:')
+		println(cmd_result.output)
+	}
+
+	println('\nFiles need ${typ} formatting.')
+
+	// Prompt user to fix
+	mut confirm := ''
+	for {
+		confirm = os.input('Would you like to auto-format these files? (y/n): ').to_lower()
+		if confirm in ['y', 'n'] {
+			break
+		}
+		println('Please enter "y" or "n".')
+	}
+
+	if confirm == 'n' {
+		println('Skipped auto-formatting.')
+		return error('Files need formatting but auto-fix was declined')
+	}
+
+	// Generate fix command
+	fix_cmd := match typ {
+		'js', 'ts', 'json', 'yaml' {
+			if fileName != '' {
+				'prettier --write ${fileName}'
+			} else {
+				'prettier --write .'
+			}
+		}
+		'python' {
+			if fileName != '' {
+				'black ${fileName}'
+			} else {
+				'black .'
+			}
+		}
+		'go' {
+			if fileName != '' {
+				'gofmt -w ${fileName}'
+			} else {
+				'gofmt -w .'
+			}
+		}
+		'toml' {
+			'cargo fmt'
+		}
+		else {
+			return error('No formatting fix command available for ${typ}')
+		}
+	}
+
+	println('\nExecuting formatting: ${fix_cmd}')
+	fix_result := os.execute(fix_cmd)
+
+	if fix_result.exit_code != 0 {
+		return error('Formatting failed: ${fix_result.output}')
+	}
+
+	println('✓ Successfully formatted ${typ} files')
 }
 
 // ===================================== CMD ERROR HANDLING =====================================
